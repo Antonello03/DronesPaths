@@ -1,2 +1,4 @@
 mip
 matplotlib
+networkx
+numpy
