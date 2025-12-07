@@ -44,6 +44,46 @@ def checkEuclideanDistanceCustom(a: tuple[float, float, float], b: tuple[float, 
 
     return condition1 or condition2
 
+def travelTime(a: tuple[float, float, float], b: tuple[float, float, float]) -> float:
+    """
+    Calculate the travel time between two points in 3D space according to the specified rules.
+    """
+    upwardVelocity = 1.0
+    downwardVelocity = 2.0
+    horizontalVelocity = 1.5
+
+    if a == b:
+        return 0.0
+
+    # purely upward/downward movement
+    if a[0] == b[0] and a[1] == b[1]:
+        if a[2] < b[2]:
+            return euclidean3DDistance(a,b) / upwardVelocity
+        elif a[2] > b[2]:
+            return euclidean3DDistance(a,b) / downwardVelocity
+    
+    # purely horizontal movement
+    if a[2] == b[2]:
+        return euclidean3DDistance(a,b) / horizontalVelocity
+    
+    # horizontal and upward
+    if a[2] < b[2] and (a[0] != b[0] or a[1] != b[1]):
+        horizontal_distance = sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+        vertical_distance = abs(a[2] - b[2])
+        time_horizontal = horizontal_distance / horizontalVelocity
+        time_vertical = vertical_distance / upwardVelocity
+        return max(time_horizontal, time_vertical)
+    
+    # horizontal and downward
+    if a[2] > b[2] and (a[0] != b[0] or a[1] != b[1]):
+        horizontal_distance = sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
+        vertical_distance = abs(a[2] - b[2])
+        time_horizontal = horizontal_distance / horizontalVelocity
+        time_vertical = vertical_distance / downwardVelocity
+        return max(time_horizontal, time_vertical)
+    
+    raise ValueError("Unhandled case for points a and b")
+
 def createConnectionMatrixCustom(nodes: list[tuple[int, float, float, float]], output_path: str) -> np.ndarray:
 
     N = len(nodes)
@@ -67,45 +107,84 @@ def createConnectionMatrixCustom(nodes: list[tuple[int, float, float, float]], o
                 connectionMatrix[a[0], b[0]] = True
                 connectionMatrix[b[0], a[0]] = True
 
-    np.save(output_path, connectionMatrix)
+    if output_path is not None:
+        np.savez_compressed(output_path, data=connectionMatrix)
     
     return connectionMatrix
 
-def realizeGraphFromBuilding(building_path: str, connectionMatrixCompressed_path: str) -> nx.Graph:
+def createConnectionMatrixWithStartingPoints(nodes: list[tuple[int, float, float, float]], output_path: str, startingPoint: tuple[float, float, float], yThreshold : int) -> np.ndarray:
     """
-    Realizes a graph from the given building structure.
+    Create a connection matrix for the given nodes following the custom distance rules.
+    If startingPoint is provided, it is added as the first node in the matrix.
+    Connections from the starting point are only made to nodes with y coordinate less than or equal to yThreshold.
     """
+    N = len(nodes)
+    connectionMatrix = np.zeros((N+1,N+1), dtype = bool)
 
-    G = nx.Graph()
+    k = 0
+    tot = N * (N - 1) // 2
 
-    nodes = loadBuildingDots(building_path)
-    coord = {i: (x, y, z) for i, x, y, z in nodes}
+    for i in range(0,N):
+        a = nodes[i]
+        ax, ay, az = a[1], a[2], a[3]
+
+        for j in range(i + 1, N):
+            b = nodes[j]
+            bx, by, bz = b[1], b[2], b[3]
+
+            k += 1
+            print(k, "/", tot, k * 100 // tot, "%", end="\r")
+
+            if checkEuclideanDistanceCustom((ax, ay, az), (bx, by, bz)):
+                connectionMatrix[a[0]+1, b[0]+1] = True
+                connectionMatrix[b[0]+1, a[0]+1] = True
+
+    print("\nAdding starting point connections...")
+    a = startingPoint
+    for j in range(0, N):
+        b = nodes[j]
+        if b[2] <= yThreshold:
+            bx, by, bz = b[1], b[2], b[3]
+            connectionMatrix[0, b[0]+1] = True
+            connectionMatrix[b[0]+1, 0] = True
+
+    if output_path is not None:
+        np.savez_compressed(output_path, data=connectionMatrix)
+    
+    return connectionMatrix
+
+def createDistanceMatrix(nodes: list[tuple[int, float, float, float]], output_path: str, startingPoint: tuple[float, float, float]) -> np.ndarray:
+    """
+    Create a distance matrix for the given nodes following the travel time rules.
+    If startingPoint is provided, it is added as the first node in the matrix.
+    """
+    
+    if startingPoint is not None:
+        nodes = [(node[0]+1, node[1], node[2], node[3]) for node in nodes]
+        nodes.insert(0, (0, startingPoint[0], startingPoint[1], startingPoint[2]))
 
     N = len(nodes)
+    distanceMatrix = np.zeros((N,N), dtype = float)
 
-    for index, x, y, z in nodes:
-        G.add_node(index, pos=(x, y, z))
+    k = 0
+    tot = N * N - N
 
-    connectionMatrix = np.load(connectionMatrixCompressed_path)['data']
-        
-    G.add_edges_from([(i, j) for i in range(N) for j in range(N) if connectionMatrix[i][j]])
+    for i in range(N):
+        a = nodes[i]
+        ax, ay, az = a[1], a[2], a[3]
 
-    return G
+        for j in range(N):
+            b = nodes[j]
+            bx, by, bz = b[1], b[2], b[3]
 
-def checkSolutionFeasibility(solution):
-    """
-    Checks if the given solution is feasible.
-    """
-    pass
+            k += 1
+            print(k, "/", tot, k * 100 // tot, "%", end="\r")
+            distanceMatrix[a[0], b[0]] = travelTime((ax, ay, az), (bx, by, bz))
 
-def visualizeSolution(solution) -> None:
-    """
-    Generate a 3D plot to visualize the given drone path.
-    """
+    if output_path is not None:
+        np.savez_compressed(output_path, data=distanceMatrix)
 
-    #TODO
-
-    pass
+    return distanceMatrix
 
 def visualizeBuilding(building_path: str, output_path: str = None, show: bool = False) -> None:
     """
@@ -140,7 +219,7 @@ def visualizeBuilding(building_path: str, output_path: str = None, show: bool = 
     if show:
         plt.show()
 
-def visualizeBuildingWithConnections(building_path: str, G : nx.Graph, output_path: str = None, show: bool = False) -> None:
+def visualizeBuildingWithConnections(building_path: str, connectionMatrix: np.ndarray, output_path: str = None, show: bool = False, startingPoint: tuple[float, float, float] = None) -> None:
     """
     Generate a 3D plot to visualize the given building structure with connections.
     """
@@ -148,12 +227,12 @@ def visualizeBuildingWithConnections(building_path: str, G : nx.Graph, output_pa
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    step = 3000
-    count = 0
-
     print(f"Plotting to file visualization from {building_path} with connections...")
 
     dots = loadBuildingDots(building_path)
+
+    if startingPoint is not None:
+        dots.insert(0, (0, startingPoint[0], startingPoint[1], startingPoint[2]))
 
     xs = [dot[1] for dot in dots]
     ys = [dot[2] for dot in dots]
@@ -162,11 +241,14 @@ def visualizeBuildingWithConnections(building_path: str, G : nx.Graph, output_pa
     ax.scatter(xs, ys, zs, c='tab:blue', s= 0.6)
 
     # Plot connections
-    for u, v in G.edges():
-        x_values = [G.nodes[u]['pos'][0], G.nodes[v]['pos'][0]]
-        y_values = [G.nodes[u]['pos'][1], G.nodes[v]['pos'][1]]
-        z_values = [G.nodes[u]['pos'][2], G.nodes[v]['pos'][2]]
-        ax.plot(x_values, y_values, z_values, c='tab:gray', linewidth=0.2)
+    N = len(dots)
+    for i in range(N):
+        for j in range(i + 1, N):
+            if connectionMatrix[i][j]:
+                x_values = [dots[i][1], dots[j][1]]
+                y_values = [dots[i][2], dots[j][2]]
+                z_values = [dots[i][3], dots[j][3]]
+                ax.plot(x_values, y_values, z_values, c='tab:gray', linewidth=0.2)
 
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
@@ -179,6 +261,8 @@ def visualizeBuildingWithConnections(building_path: str, G : nx.Graph, output_pa
 
     if show:
         plt.show()
+
+# code belowe works only without starting point in connection matrix
 
 def visualizeSolution(building_path, solution:str, output_path: str) -> None:
     """

@@ -13,14 +13,34 @@ def euclideanDistanceTest():
     b = (2, 2, 1.5)
     print(euclidean3DDistance(a,b), checkEuclideanDistanceCustom(a,b))
 
-def graphCreationTest():
-    G = realizeGraphFromBuilding("data/buildings/Building2.txt", "data/buildings/connection_matrix_building2.npy")
-    print(G.number_of_nodes(), G.number_of_edges())
-    visualizeBuildingWithConnections("data/buildings/Building2.txt", G, show=True)
-
 def compressnpy():
     data = np.load("data/buildings/connection_matrix_building1.npy")
     np.savez_compressed("data/buildings/connection_matrix_building1_compressed.npz", data=data)
 
+def distances():
+    possiblevalues = (1,2)
+    for x in possiblevalues:
+        for y in possiblevalues:
+            for z in possiblevalues:
+                for a in possiblevalues:
+                    for b in possiblevalues:
+                        for c in possiblevalues:
+                            point1 = (x,y,z)
+                            point2 = (a,b,c)
+                            try:
+                                time = travelTime(point1, point2)
+                                print(f"From {point1} to {point2}: {time}")
+                            except ValueError as e:
+                                print(f"From {point1} to {point2}: {e}")
+
+def distanceMatrix():
+    nodes = loadBuildingDots("data/buildings/Building1.txt")
+    distanceMatrix = createConnectionMatrixWithStartingPoints(
+        nodes,
+        output_path="data/buildings/distance_matrix_building1_compressed.npz",
+        startingPoint=(0,-16,0),
+        yThreshold=-12.5)
+    print(distanceMatrix)
+
 if __name__ == "__main__":
-    pass
+    distanceMatrix()
