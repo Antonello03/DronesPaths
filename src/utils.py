@@ -264,12 +264,12 @@ def visualizeBuildingWithConnections(building_path: str, connectionMatrix: np.nd
 
 # code belowe works only without starting point in connection matrix
 
-def visualizeSolution(building_path, solution:str, output_path: str) -> None:
+def visualizeSolution(building_path, solution:str, output_path: str, startingPoint: tuple = None) -> None:
     """
     Generate a 3D plot to visualize the given drone path.
+    If startingPoint is provided, solution indices are assumed to have 0=base, 1...n=grid points.
+    Otherwise, indices directly match the building file (0...n-1).
     """
-
-    #TODO add initial and final positions different colors and visual improvements 
 
     # Parse solution
     drones_paths = []
@@ -285,6 +285,13 @@ def visualizeSolution(building_path, solution:str, output_path: str) -> None:
 
     # Load building dots
     dots = loadBuildingDots(building_path)
+    
+    # If starting point provided, add it as index 0
+    if startingPoint is not None:
+        # Shift all dot indices by 1 and add base at index 0
+        dots_with_base = [(0, startingPoint[0], startingPoint[1], startingPoint[2])] + \
+                        [(i+1, x, y, z) for i, x, y, z in dots]
+        dots = dots_with_base
 
     # Plot paths and building dots
     fig = plt.figure()
