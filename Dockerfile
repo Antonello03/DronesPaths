@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Default command
-CMD ["python", "-u", "main.py", "data/buildings/Building2.txt"]
+CMD ["python", "-u", "main.py", "data/buildings/Edificio2.csv"]
 
