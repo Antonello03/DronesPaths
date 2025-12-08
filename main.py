@@ -45,11 +45,7 @@ if __name__ == "__main__":
     print("Loading building data...")
     nodes = loadBuildingDots(input_path)
     
-    # Add starting point to nodes list (index 0)
-    nodes_with_base = [(0, startingPoint[0], startingPoint[1], startingPoint[2])] + \
-                      [(i+1, x, y, z) for i, x, y, z in nodes]
-    
-    print(f"Loaded {len(nodes)} grid points + 1 base point = {len(nodes_with_base)} total nodes\n")
+    print(f"Loaded {len(nodes)} grid points\n")
     
     # Load pre-computed matrices
     print("Loading connection and distance matrices...")
@@ -68,14 +64,24 @@ if __name__ == "__main__":
         print("Please run the matrix generation code first.")
         sys.exit(1)
     
+    # The pre-computed matrices already include base at index 0
+    # So we need to add base to nodes list to match matrix indexing
+    nodes_with_base = [(0, startingPoint[0], startingPoint[1], startingPoint[2])] + \
+                      [(i+1, x, y, z) for i, x, y, z in nodes]
+    
+    print(f"Total nodes for solver: {len(nodes_with_base)} (1 base + {len(nodes)} grid points)\n")
+    
     # Solve the multi-drone routing problem
     print("Starting MIP solver...\n")
+    k_drones = 4  # assignment requirement
+    time_limit = 10**9  # practically infinite; do not cut solver early
+    print(f"Running with {k_drones} drones, time limit = {time_limit} seconds (practically infinite)")
     result = solve_instance(
         nodes=nodes_with_base,
         connection_matrix=connectionMatrix,
         distance_matrix=distanceMatrix,
-        k_drones=4,
-        time_limit=300  # 5 minutes time limit
+        k_drones=k_drones,
+        time_limit=time_limit
     )
     
     # Print detailed summary

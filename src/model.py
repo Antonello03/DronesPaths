@@ -43,12 +43,12 @@ def solve_instance(nodes, connection_matrix, distance_matrix, k_drones=4, time_l
     V = list(range(1, len(nodes)))  # Grid points only: [1, 2, ..., n]
     K = list(range(1, k_drones + 1))  # Drones: [1, 2, 3, 4]
     
-    # Build arc set A from connection matrix
-    A = []
+    # Build arc set A from connection matrix (as set for fast lookup)
+    A = set()
     for i in N:
         for j in N:
             if i != j and connection_matrix[i][j]:
-                A.append((i, j))
+                A.add((i, j))
     
     print(f"Problem size:")
     print(f"  - Nodes: {len(N)} (base + {n} grid points)")
@@ -71,10 +71,11 @@ def solve_instance(nodes, connection_matrix, distance_matrix, k_drones=4, time_l
         for (i, j) in A:
             x[d, i, j] = m.add_var(name=f"x_{d}_{i}_{j}", var_type=BINARY)
     
-    # MTZ order variables: u[i] = position of node i in tour (subtour elimination)
+    # MTZ order variables per drone: u[d,i] = position of node i in drone d tour
     u = {}
-    for i in V:
-        u[i] = m.add_var(name=f"u_{i}", var_type=INTEGER, lb=1, ub=n)
+    for d in K:
+        for i in V:
+            u[d, i] = m.add_var(name=f"u_{d}_{i}", var_type=INTEGER, lb=1, ub=n)
     
     # Time variables
     T_d = {}  # T_d[d] = total route time for drone d
@@ -97,52 +98,69 @@ def solve_instance(nodes, connection_matrix, distance_matrix, k_drones=4, time_l
     
     # C1. Each grid point is visited exactly once
     print("  C1: Each grid point visited exactly once")
+    c1_count = 0
     for i in V:
         m += xsum(x[d, j, i] for d in K for j in N if (j, i) in A) == 1, f"visit_{i}"
+        c1_count += 1
+    print(f"     Added {c1_count} C1 constraints")
     
     # C2. Flow conservation at each grid point (per drone)
     print("  C2: Flow conservation at each grid point")
+    c2_count = 0
     for d in K:
         for i in V:
             outgoing = [j for j in N if (i, j) in A]
             incoming = [j for j in N if (j, i) in A]
-            if outgoing and incoming:
-                m += (xsum(x[d, i, j] for j in outgoing) - 
-                      xsum(x[d, j, i] for j in incoming) == 0), f"flow_{d}_{i}"
+            # Add flow conservation: what comes in must go out
+            m += (xsum(x[d, i, j] for j in outgoing) - 
+                  xsum(x[d, j, i] for j in incoming) == 0), f"flow_{d}_{i}"
+            c2_count += 1
+    print(f"     Added {c2_count} C2 constraints")
     
     # C3. Each drone departs from base exactly once
     print("  C3: Each drone departs from base exactly once")
+    c3_count = 0
     for d in K:
         outgoing_from_base = [j for j in N if (0, j) in A]
+        print(f"     Drone {d}: base can reach {len(outgoing_from_base)} entry points")
         m += xsum(x[d, 0, j] for j in outgoing_from_base) == 1, f"depart_{d}"
+        c3_count += 1
+    print(f"     Added {c3_count} C3 constraints")
     
     # C4. Each drone returns to base exactly once
     print("  C4: Each drone returns to base exactly once")
+    c4_count = 0
     for d in K:
         incoming_to_base = [j for j in N if (j, 0) in A]
         m += xsum(x[d, j, 0] for j in incoming_to_base) == 1, f"return_{d}"
+        c4_count += 1
+    print(f"     Added {c4_count} C4 constraints")
     
     # C5. Route time definition for each drone
     print("  C5: Route time definition")
     for d in K:
         m += (T_d[d] == xsum(distance_matrix[i][j] * x[d, i, j] 
                              for (i, j) in A)), f"route_time_{d}"
+    print(f"     Added {len(K)} C5 constraints")
     
     # C6. Makespan definition
     print("  C6: Makespan definition")
     for d in K:
         m += T >= T_d[d], f"makespan_{d}"
+    print(f"     Added {len(K)} C6 constraints")
     
-    # C7. MTZ subtour elimination constraints
+    # C7. MTZ subtour elimination constraints 
+    # we prevent subtours with the constraint instead of the iterative approach
     print("  C7: MTZ subtour elimination")
     mtz_count = 0
-    for i in V:
-        for j in V:
-            if i != j and (i, j) in A:
-                # u_i - u_j + 1 <= (n-1)(1 - sum_d x_dij)
-                m += (u[i] - u[j] + 1 <= (n - 1) * (1 - xsum(x[d, i, j] for d in K))), \
-                     f"mtz_{i}_{j}"
-                mtz_count += 1
+    for d in K:
+        for i in V:
+            for j in V:
+                if i != j and (i, j) in A:
+                    # u_di - u_dj + 1 <= (n-1)(1 - x_dij)
+                    m += (u[d, i] - u[d, j] + 1 <= (n - 1) * (1 - x[d, i, j])), \
+                         f"mtz_{d}_{i}_{j}"
+                    mtz_count += 1
     print(f"     Added {mtz_count} MTZ constraints")
     
     print()
