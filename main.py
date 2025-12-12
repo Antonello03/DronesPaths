@@ -43,26 +43,40 @@ if __name__ == "__main__":
     
     # Load building data
     print("Loading building data...")
-    nodes = loadBuildingDots(input_path)
+    nodes = loadBuildingDots(input_path, removeDuplicates=True)
     
     print(f"Loaded {len(nodes)} grid points\n")
     
-    # Load pre-computed matrices
+    # Load or compute connection and distance matrices
     print("Loading connection and distance matrices...")
-    try:
-        connectionMatrix = np.load(f"data/connection_matrix/connection_matrix_{building_name}_compressed.npz")['data']
-        distanceMatrix = np.load(f"data/distance_matrix/distance_matrix_{building_name}_compressed.npz")['data']
-        print(f"Connection matrix shape: {connectionMatrix.shape}")
-        print(f"Distance matrix shape: {distanceMatrix.shape}")
-        
-        # Count feasible arcs
-        num_arcs = np.sum(connectionMatrix)
-        print(f"Total feasible arcs: {num_arcs}\n")
-        
-    except FileNotFoundError as e:
-        print(f"Error: Could not find pre-computed matrices for {building_name}")
-        print("Please run the matrix generation code first.")
-        sys.exit(1)
+
+    cm_path = f"data/connection_matrix/connection_matrix_{building_name}_compressed.npz"
+    dm_path = f"data/distance_matrix/distance_matrix_{building_name}_compressed.npz"
+
+    # --- connection matrix ---
+    if os.path.exists(cm_path):
+        connectionMatrix = np.load(cm_path)["data"]
+        print("Loaded connection matrix from disk.")
+    else:
+        print("Connection matrix not found. Computing...")
+        connectionMatrix = createConnectionMatrixWithStartingPoints(nodes, cm_path, startingPoint, yThreshold)
+        print("Computed connection matrix.")
+
+    # --- distance matrix ---
+    if os.path.exists(dm_path):
+        distanceMatrix = np.load(dm_path)["data"]
+        print("Loaded distance matrix from disk.")
+    else:
+        print("Distance matrix not found. Computing...")
+        distanceMatrix = createDistanceMatrix(nodes, dm_path, startingPoint)
+        print("Computed distance matrix.")
+
+    print(f"Connection matrix shape: {connectionMatrix.shape}")
+    print(f"Distance matrix shape: {distanceMatrix.shape}")
+
+    num_arcs = int(np.sum(connectionMatrix))
+    print(f"Total feasible arcs: {num_arcs}\n")
+
     
     # The pre-computed matrices already include base at index 0
     # So we need to add base to nodes list to match matrix indexing

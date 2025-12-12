@@ -3,9 +3,9 @@ sys.path.append(os.path.dirname(__file__))
 from src.utils import *
 
 def visualizationTest():
-    visualizeBuilding("data/buildings/Building1.txt", "data/buildings/building1_visualization.png")
-    testSolution = generateTestSolution("data/buildings/Building1.txt")
-    visualizeSolution("data/buildings/Building1.txt", testSolution, "data/solutions/test_solution_visualization.png")
+    visualizeBuilding("data/buildings/Edificio1.csv", "data/plots/building1.png")
+    connectionMatrix = np.load("data/connection_matrix/connection_matrix_building1_compressed.npz")["data"]
+    visualizeBuildingWithConnections("data/buildings/Edificio1.csv", connectionMatrix, "data/plots/building1_connections.png", show=True, startingPoint=(0,-16,0))
 
 def euclideanDistanceTest():
     #realizeGraphFromBuilding("data/buildings/Building1.txt")
@@ -43,4 +43,4 @@ def distanceMatrix():
     print(distanceMatrix)
 
 if __name__ == "__main__":
-    distanceMatrix()
+    visualizationTest()

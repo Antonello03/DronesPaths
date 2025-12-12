@@ -3,24 +3,31 @@ import networkx as nx
 import numpy as np
 from math import sqrt
 
-def loadBuildingDots(building_path: str) -> list[tuple[int, float, float, float]]:
+def loadBuildingDots(building_path: str, removeDuplicates=True) -> list[tuple[int, float, float, float]]:
     """
     Loads the building dots from the given file.
     Returns a list of tuples (index, x, y, z).
+    If removeDuplicates=True, removes duplicate (x,y,z) rows and reindexes from 0..N-1.
     """
 
-    i = 0
-
-    dots = []
+    dots_raw: list[tuple[float, float, float]] = []
 
     with open(building_path, "r") as f:
         next(f)
         for line in f:
             x, y, z = map(float, line.strip().split(","))
-            dots.append((i, x, y, z))
-            i += 1
+            dots_raw.append((x, y, z))
 
-    return dots
+    if removeDuplicates:
+        seen: set[tuple[float, float, float]] = set()
+        unique_xyz: list[tuple[float, float, float]] = []
+        for xyz in dots_raw:
+            if xyz not in seen:
+                seen.add(xyz)
+                unique_xyz.append(xyz)
+        dots_raw = unique_xyz
+
+    return [(i, x, y, z) for i, (x, y, z) in enumerate(dots_raw)]
 
 def euclidean3DDistance(a: tuple[float, float, float], b: tuple[float, float, float]) -> float:
     """
@@ -266,54 +273,61 @@ def visualizeBuildingWithConnections(building_path: str, connectionMatrix: np.nd
 
 def visualizeSolution(building_path, solution:str, output_path: str, startingPoint: tuple = None) -> None:
     """
-    Generate a 3D plot to visualize the given drone path.
-    If startingPoint is provided, solution indices are assumed to have 0=base, 1...n=grid points.
-    Otherwise, indices directly match the building file (0...n-1).
+    Visualize drone solutions from solution files
     """
+    import sys
+    sys.path.append('.')
 
-    # Parse solution
-    drones_paths = []
-    for line in solution.strip().split("\n"):
-        path = []
-        parts = line.split(":")[1].strip().split("-")
-        for part in parts:
-            index = int(part)
-            path.append(index)
-        drones_paths.append(path)
+    from src.utils import visualizeSolution
+    import os
 
-    print(drones_paths)
+    def visualize_from_file(solution_file, building_file, output_file, starting_point=None):
+        """Read solution file and create visualization"""
+        
+        # Read solution
+        with open(solution_file, 'r') as f:
+            solution_text = f.read()
+        
+        print(f"Visualizing solution from: {solution_file}")
+        print(f"Building data: {building_file}")
+        print(f"Output: {output_file}")
+        
+        # Determine starting point based on building
+        if "Edificio1" in building_file or "Building1" in building_file:
+            starting_point = (0, -16, 0)
+        elif "Edificio2" in building_file or "Building2" in building_file:
+            starting_point = (0, -40, 0)
+        elif "Test" in building_file:
+            starting_point = (0, 0, 0)
+        
+        # Create visualization
+        visualizeSolution(building_file, solution_text, output_file, starting_point)
+        print(f"✓ Visualization saved to {output_file}")
 
-    # Load building dots
-    dots = loadBuildingDots(building_path)
-    
-    # If starting point provided, add it as index 0
-    if startingPoint is not None:
-        # Shift all dot indices by 1 and add base at index 0
-        dots_with_base = [(0, startingPoint[0], startingPoint[1], startingPoint[2])] + \
-                        [(i+1, x, y, z) for i, x, y, z in dots]
-        dots = dots_with_base
-
-    # Plot paths and building dots
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    colors = ['tab:red', 'tab:green', 'tab:orange', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive']
-
-    for path in drones_paths:
-        xs = []
-        ys = []
-        zs = []
-        for index in path:
-            _, x, y, z = dots[index]
-            xs.append(x)
-            ys.append(y)
-            zs.append(z)
-        ax.plot(xs, ys, zs, c= colors[drones_paths.index(path) % len(colors)], linewidth=0.4)
-
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.set_zlabel("Z")
-    plt.savefig(output_path, dpi=200)
+    if __name__ == "__main__":
+        if len(sys.argv) < 2:
+            print("Error: Missing solution file argument")
+            print("Usage: python visualize_solution.py <solution_file.txt>")
+            print("Example: python visualize_solution.py data/solutions/Edificio2_solution.txt")
+            sys.exit(1)
+        
+        solution_file = sys.argv[1]
+        
+        if not os.path.exists(solution_file):
+            print(f"Error: Solution file not found: {solution_file}")
+            sys.exit(1)
+        
+        # Determine building file and output based on solution filename
+        basename = os.path.basename(solution_file).replace("_solution.txt", "")
+        building_file = f"data/buildings/{basename}.csv"
+        output_file = f"data/solutions/{basename}_visualization.png"
+        
+        if not os.path.exists(building_file):
+            print(f"Error: Building file not found: {building_file}")
+            sys.exit(1)
+        
+        visualize_from_file(solution_file, building_file, output_file)
+        print("\n✓ Visualization complete!")
 
 def generateTestSolution(building_path) -> str:
     """
