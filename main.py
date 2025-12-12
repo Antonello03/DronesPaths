@@ -27,6 +27,11 @@ if __name__ == "__main__":
         instance_name = "BuildingTest"
         startingPoint = (0, 0, 0)
         yThreshold = 2.0  # Half the points as entry points
+    elif "Edificio4" in input_path or "Building4" in input_path:
+        building_name = "building4"
+        instance_name = "Edificio4"
+        startingPoint = (0, -40, 0)
+        yThreshold = -20.0
     else:
         building_name = "building2"
         instance_name = "Edificio2"
