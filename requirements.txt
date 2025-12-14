@@ -1,4 +1,3 @@
 mip
 matplotlib
-networkx
 numpy
