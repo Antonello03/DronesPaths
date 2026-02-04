@@ -322,7 +322,7 @@ def solve_multi_trip(nodes: List[Tuple],
     if heuristic_solution is not None:
         max_trips = min(heuristic_solution['num_trips'] + 2, 30)
     else:
-        max_trips = min(len(nodes) // 10, 20)
+        max_trips = min(len(nodes) // 5, 30)  # More generous: n/5 instead of n/10
     
     # Build and solve model
     model = MultiTripModel(
