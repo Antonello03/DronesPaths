@@ -6,7 +6,6 @@ from typing import List, Tuple
 class BaseSelector:
     """
     Selects optimal base location from candidate points.
-    
     Strategy: Find the candidate point closest to the centroid of all grid points.
     This minimizes average distance to all points.
     """
@@ -36,7 +35,7 @@ class BaseSelector:
                     y_threshold: float) -> Tuple[int, int, int]:
         """
         Select the best base location from candidate integer points.
-        
+
         """
         candidates = self._generate_candidates(x_range, y_range, z_value, y_threshold)
         

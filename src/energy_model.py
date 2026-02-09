@@ -1,8 +1,5 @@
 """
-Energy Consumption Model
-
-Responsible for calculating energy consumption and travel times for drone movements.
-Follows Single Responsibility Principle.
+Energy Consumption Model for calculating energy consumption and travel times for drone movements.
 """
 
 import numpy as np

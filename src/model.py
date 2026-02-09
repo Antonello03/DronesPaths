@@ -89,11 +89,11 @@ def solve_instance(nodes, connection_matrix, distance_matrix, k_drones=4, time_l
     print(f"  - Time variables: {len(T_d)} + 1 (makespan)")
     print()
     
-    # ========== OBJECTIVE FUNCTION ==========
+    # OBJECTIVE FUNCTION 
     print("Setting objective: minimize makespan T")
     m.objective = minimize(T)
     
-    # ========== CONSTRAINTS ==========
+    # CONSTRAINTS 
     print("Adding constraints...")
     
     # C1. Each grid point is visited exactly once
@@ -244,8 +244,8 @@ def format_solution_output(result, drone_offset=1):
     Format the solution for output according to requirements.
     
     Output format:
-    Drone 1: 0-4-11-17-...-2-0
-    Drone 2: 0-5-6-3-...-7-0
+    Trip 1: 0-4-11-17-...-2-0
+    Trip 2: 0-5-6-3-...-7-0
     etc.
     
     Parameters:
@@ -264,9 +264,9 @@ def format_solution_output(result, drone_offset=1):
     
     lines = []
     for i, route in enumerate(result['routes']):
-        drone_num = i + drone_offset
+        trip_num = i + drone_offset
         route_str = "-".join(map(str, route))
-        lines.append(f"Drone {drone_num}: {route_str}")
+        lines.append(f"Trip {trip_num}: {route_str}")
     
     return "\n".join(lines)
 
@@ -276,7 +276,7 @@ def print_solution_summary(result):
     Print a detailed summary of the solution.
     """
     if result['routes'] is None:
-        print("\n❌ No solution found")
+        print("\nNo solution found")
         return
     
     print("\n" + "=" * 60)
